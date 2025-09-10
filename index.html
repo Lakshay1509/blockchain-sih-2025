@@ -146,28 +146,73 @@
         let userAccount;
 
         async function connectWallet() {
-            if (typeof window.ethereum !== 'undefined') {
+    if (typeof window.ethereum !== 'undefined') {
+        try {
+            // Request account access
+            await window.ethereum.request({ method: 'eth_requestAccounts' });
+            
+            web3 = new Web3(window.ethereum);
+            const accounts = await web3.eth.getAccounts();
+            userAccount = accounts[0];
+            
+            // Check current chain ID
+            const chainId = await window.ethereum.request({ method: 'eth_chainId' });
+            const sepoliaChainId = '0xaa36a7'; // 11155111 in hex
+            
+            // Switch to Sepolia if not already connected
+            if (chainId !== sepoliaChainId) {
                 try {
-                    // Request account access
-                    await window.ethereum.request({ method: 'eth_requestAccounts' });
-                    
-                    web3 = new Web3(window.ethereum);
-                    const accounts = await web3.eth.getAccounts();
-                    userAccount = accounts[0];
-                    
-                    contract = new web3.eth.Contract(contractABI, contractAddress);
-                    
-                    document.getElementById('walletStatus').innerHTML = 
-                        `<div class="success">✅ Connected: ${userAccount}</div>`;
-                } catch (error) {
-                    document.getElementById('walletStatus').innerHTML = 
-                        `<div class="error">❌ Error: ${error.message}</div>`;
+                    // Try to switch to Sepolia
+                    await window.ethereum.request({
+                        method: 'wallet_switchEthereumChain',
+                        params: [{ chainId: sepoliaChainId }],
+                    });
+                } catch (switchError) {
+                    // If Sepolia is not added to MetaMask, add it
+                    if (switchError.code === 4902) {
+                        try {
+                            await window.ethereum.request({
+                                method: 'wallet_addEthereumChain',
+                                params: [{
+                                    chainId: sepoliaChainId,
+                                    chainName: 'Sepolia Testnet',
+                                    nativeCurrency: {
+                                        name: 'SepoliaETH',
+                                        symbol: 'ETH',
+                                        decimals: 18,
+                                    },
+                                    rpcUrls: ['https://rpc.sepolia.org'],
+                                    blockExplorerUrls: ['https://sepolia.etherscan.io/'],
+                                }],
+                            });
+                        } catch (addError) {
+                            document.getElementById('walletStatus').innerHTML = 
+                                `<div class="error">❌ Failed to add Sepolia network: ${addError.message}</div>`;
+                            return;
+                        }
+                    } else {
+                        document.getElementById('walletStatus').innerHTML = 
+                            `<div class="error">❌ Failed to switch to Sepolia: ${switchError.message}</div>`;
+                        return;
+                    }
                 }
-            } else {
-                document.getElementById('walletStatus').innerHTML = 
-                    '<div class="error">❌ Please install MetaMask!</div>';
             }
+            
+            contract = new web3.eth.Contract(contractABI, contractAddress);
+            
+            document.getElementById('walletStatus').innerHTML = 
+                `<div class="success">✅ Connected to Sepolia: ${userAccount}</div>`;
+                
+        } catch (error) {
+            document.getElementById('walletStatus').innerHTML = 
+                `<div class="error">❌ Error: ${error.message}</div>`;
         }
+    } else {
+        document.getElementById('walletStatus').innerHTML = 
+            '<div class="error">❌ Please install MetaMask!</div>';
+    }
+}
+
 
         async function issueCertificate() {
             if (!contract) {
