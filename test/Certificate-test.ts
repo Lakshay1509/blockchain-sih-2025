@@ -1,6 +1,6 @@
 import { expect } from "chai";
 import { network } from "hardhat";
-import {} from "hardhat"
+
 
 const { ethers } = await network.connect();
 
@@ -57,7 +57,7 @@ describe("CertificateVerification", function () {
     ).to.be.revertedWith("You are not authorized to issue certificates");
   });
 
-  it("Should verify an existing certificate correctly", async function () {
+it("Should verify an existing certificate correctly", async function () {
     const certificateContract = await ethers.deployContract("CertificateVerification");
     const [, issuer] = await ethers.getSigners();
 
@@ -72,8 +72,10 @@ describe("CertificateVerification", function () {
     expect(marks).to.equal(95);
     expect(isValid).to.be.true;
     expect(certIssuer).to.equal(issuer.address);
-    expect(issueDate.toNumber()).to.be.greaterThan(0);
-  });
+    expect(issueDate).to.be.greaterThan(0n);  // ✅ Correct way for bigint
+});
+
+
 
   it("Should return false for non-existent certificate", async function () {
     const certificateContract = await ethers.deployContract("CertificateVerification");

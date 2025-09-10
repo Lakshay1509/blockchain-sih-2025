@@ -1,0 +1,250 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Certificate Verification System</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+        h1 {
+            color: #333;
+            text-align: center;
+        }
+        .section {
+            margin-bottom: 30px;
+            padding: 20px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+        input, button {
+            padding: 10px;
+            margin: 5px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            width: 200px;
+        }
+        button {
+            background-color: #007bff;
+            color: white;
+            cursor: pointer;
+            width: auto;
+            padding: 10px 20px;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        .result {
+            margin-top: 10px;
+            padding: 10px;
+            background-color: #f8f9fa;
+            border-radius: 5px;
+        }
+        .success {
+            border-left: 4px solid #28a745;
+            background-color: #d4edda;
+        }
+        .error {
+            border-left: 4px solid #dc3545;
+            background-color: #f8d7da;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎓 Certificate Verification System</h1>
+        
+        <div class="section">
+            <h2>Connect Wallet</h2>
+            <button onclick="connectWallet()">Connect MetaMask</button>
+            <div id="walletStatus" class="result"></div>
+        </div>
+
+        <div class="section">
+            <h2>Issue New Certificate</h2>
+            <input type="text" id="studentName" placeholder="Student Name" /><br>
+            <input type="text" id="rollNumber" placeholder="Roll Number" /><br>
+            <input type="number" id="marks" placeholder="Marks" /><br>
+            <input type="text" id="certificateId" placeholder="Certificate ID" /><br>
+            <button onclick="issueCertificate()">Issue Certificate</button>
+            <div id="issueResult" class="result"></div>
+        </div>
+
+        <div class="section">
+            <h2>Verify Certificate</h2>
+            <input type="text" id="verifyCertId" placeholder="Certificate ID to Verify" /><br>
+            <button onclick="verifyCertificate()">Verify Certificate</button>
+            <div id="verifyResult" class="result"></div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/web3@1.8.0/dist/web3.min.js"></script>
+    <script>
+        // Contract ABI (Interface)
+        const contractABI = [
+            {
+                "inputs": [],
+                "stateMutability": "nonpayable",
+                "type": "constructor"
+            },
+            {
+                "anonymous": false,
+                "inputs": [
+                    {"indexed": false, "internalType": "string", "name": "certificateId", "type": "string"},
+                    {"indexed": false, "internalType": "string", "name": "studentName", "type": "string"}
+                ],
+                "name": "CertificateIssued",
+                "type": "event"
+            },
+            {
+                "inputs": [
+                    {"internalType": "string", "name": "_name", "type": "string"},
+                    {"internalType": "string", "name": "_rollNumber", "type": "string"},
+                    {"internalType": "uint256", "name": "_marks", "type": "uint256"},
+                    {"internalType": "string", "name": "_certificateId", "type": "string"}
+                ],
+                "name": "issueCertificate",
+                "outputs": [],
+                "stateMutability": "nonpayable",
+                "type": "function"
+            },
+            {
+                "inputs": [
+                    {"internalType": "string", "name": "_certificateId", "type": "string"}
+                ],
+                "name": "verifyCertificate",
+                "outputs": [
+                    {"internalType": "string", "name": "name", "type": "string"},
+                    {"internalType": "string", "name": "rollNumber", "type": "string"},
+                    {"internalType": "uint256", "name": "marks", "type": "uint256"},
+                    {"internalType": "uint256", "name": "issueDate", "type": "uint256"},
+                    {"internalType": "address", "name": "issuer", "type": "address"},
+                    {"internalType": "bool", "name": "isValid", "type": "bool"}
+                ],
+                "stateMutability": "view",
+                "type": "function"
+            }
+        ];
+
+        // REPLACE WITH YOUR CONTRACT ADDRESS FROM DEPLOYMENT
+        const contractAddress = "0x5FbDB2315678afecb367f032d93F642f64180aa3";
+        
+        let web3;
+        let contract;
+        let userAccount;
+
+        async function connectWallet() {
+            if (typeof window.ethereum !== 'undefined') {
+                try {
+                    // Request account access
+                    await window.ethereum.request({ method: 'eth_requestAccounts' });
+                    
+                    web3 = new Web3(window.ethereum);
+                    const accounts = await web3.eth.getAccounts();
+                    userAccount = accounts[0];
+                    
+                    contract = new web3.eth.Contract(contractABI, contractAddress);
+                    
+                    document.getElementById('walletStatus').innerHTML = 
+                        `<div class="success">✅ Connected: ${userAccount}</div>`;
+                } catch (error) {
+                    document.getElementById('walletStatus').innerHTML = 
+                        `<div class="error">❌ Error: ${error.message}</div>`;
+                }
+            } else {
+                document.getElementById('walletStatus').innerHTML = 
+                    '<div class="error">❌ Please install MetaMask!</div>';
+            }
+        }
+
+        async function issueCertificate() {
+            if (!contract) {
+                alert('Please connect your wallet first!');
+                return;
+            }
+
+            const name = document.getElementById('studentName').value;
+            const rollNumber = document.getElementById('rollNumber').value;
+            const marks = document.getElementById('marks').value;
+            const certId = document.getElementById('certificateId').value;
+
+            if (!name || !rollNumber || !marks || !certId) {
+                document.getElementById('issueResult').innerHTML = 
+                    '<div class="error">❌ Please fill all fields!</div>';
+                return;
+            }
+
+            try {
+                document.getElementById('issueResult').innerHTML = 
+                    '<div>⏳ Issuing certificate... Please confirm transaction in MetaMask</div>';
+
+                const result = await contract.methods.issueCertificate(name, rollNumber, marks, certId)
+                    .send({ from: userAccount });
+
+                document.getElementById('issueResult').innerHTML = 
+                    `<div class="success">✅ Certificate issued successfully!<br>Transaction: ${result.transactionHash}</div>`;
+                
+                // Clear form
+                document.getElementById('studentName').value = '';
+                document.getElementById('rollNumber').value = '';
+                document.getElementById('marks').value = '';
+                document.getElementById('certificateId').value = '';
+
+            } catch (error) {
+                document.getElementById('issueResult').innerHTML = 
+                    `<div class="error">❌ Error: ${error.message}</div>`;
+            }
+        }
+
+        async function verifyCertificate() {
+            if (!contract) {
+                alert('Please connect your wallet first!');
+                return;
+            }
+
+            const certId = document.getElementById('verifyCertId').value;
+
+            if (!certId) {
+                document.getElementById('verifyResult').innerHTML = 
+                    '<div class="error">❌ Please enter Certificate ID!</div>';
+                return;
+            }
+
+            try {
+                const result = await contract.methods.verifyCertificate(certId).call();
+                
+                if (result.isValid) {
+                    const issueDate = new Date(result.issueDate * 1000).toLocaleDateString();
+                    document.getElementById('verifyResult').innerHTML = 
+                        `<div class="success">
+                            ✅ <strong>Certificate is VALID!</strong><br>
+                            <strong>Name:</strong> ${result.name}<br>
+                            <strong>Roll Number:</strong> ${result.rollNumber}<br>
+                            <strong>Marks:</strong> ${result.marks}<br>
+                            <strong>Issue Date:</strong> ${issueDate}<br>
+                            <strong>Issuer:</strong> ${result.issuer}
+                        </div>`;
+                } else {
+                    document.getElementById('verifyResult').innerHTML = 
+                        '<div class="error">❌ Certificate NOT FOUND or INVALID!</div>';
+                }
+            } catch (error) {
+                document.getElementById('verifyResult').innerHTML = 
+                    `<div class="error">❌ Error: ${error.message}</div>`;
+            }
+        }
+    </script>
+</body>
+</html>
