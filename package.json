@@ -2,6 +2,9 @@
   "name": "blockchain",
   "version": "1.0.0",
   "type": "module",
+  "scripts": {
+    "deploy-local" : "npx hardhat run scripts/deploy.ts --network localhost"
+  },
   "devDependencies": {
     "@nomicfoundation/hardhat-ethers": "^4.0.1",
     "@nomicfoundation/hardhat-ignition": "^3.0.3",
