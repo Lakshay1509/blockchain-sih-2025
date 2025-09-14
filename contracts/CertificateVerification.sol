@@ -2,19 +2,11 @@
 pragma solidity ^0.8.28;
 
 contract CertificateVerification {
-    // Structure to hold certificate data
-    struct Certificate {
-        string name;
-        string rollNumber;
-        uint256 marks;
-        string certificateId;
-        uint256 issueDate;
-        address issuer;
-        bool exists;
-    }
-    
-    // Mapping to store certificates by their ID
-    mapping(string => Certificate) public certificates;
+    // Mapping to store certificate hash by its ID
+    mapping(string => bytes32) public certificateHashes;
+
+    // Mapping to ensure hash uniqueness
+    mapping(bytes32 => bool) public hashExists;
     
     // Mapping to track which addresses can issue certificates
     mapping(address => bool) public authorizedIssuers;
@@ -23,8 +15,9 @@ contract CertificateVerification {
     address public owner;
     
     // Events (like notifications)
-    event CertificateIssued(string certificateId, string studentName);
+    event CertificateIssued(string certificateId, bytes32 certificateHash, address issuer);
     event IssuerAuthorized(address issuer);
+    event CertificatesIssuedBulk(string[] certificateIds, bytes32[] certificateHashes, address issuer);
     
     // Constructor - runs when contract is deployed
     constructor() {
@@ -52,55 +45,61 @@ contract CertificateVerification {
     
     // Function to issue a new certificate
     function issueCertificate(
-        string memory _name,
-        string memory _rollNumber,
-        uint256 _marks,
-        string memory _certificateId
+        string memory _certificateId,
+        bytes32 _hash
     ) public onlyAuthorized {
-        // Check if certificate already exists
-        require(!certificates[_certificateId].exists, "Certificate with this ID already exists");
+        // Check if certificate ID already exists
+        require(certificateHashes[_certificateId] == bytes32(0), "Certificate with this ID already exists");
+        // Check if hash is unique
+        require(!hashExists[_hash], "This hash is already associated with another certificate");
         
-        // Create new certificate
-        certificates[_certificateId] = Certificate({
-            name: _name,
-            rollNumber: _rollNumber,
-            marks: _marks,
-            certificateId: _certificateId,
-            issueDate: block.timestamp,
-            issuer: msg.sender,
-            exists: true
-        });
+        // Store the hash
+        certificateHashes[_certificateId] = _hash;
+        hashExists[_hash] = true;
         
         // Emit event
-        emit CertificateIssued(_certificateId, _name);
+        emit CertificateIssued(_certificateId, _hash, msg.sender);
     }
     
-    // Function to verify a certificate
-    function verifyCertificate(string memory _certificateId) 
+    // Function to issue multiple certificates in one transaction
+    function issueCertificatesBulk(
+        string[] memory _certificateIds,
+        bytes32[] memory _hashes
+    ) public onlyAuthorized {
+        require(_certificateIds.length == _hashes.length, "Input arrays must have the same length");
+
+        for (uint i = 0; i < _certificateIds.length; i++) {
+            string memory _certificateId = _certificateIds[i];
+            bytes32 _hash = _hashes[i];
+
+            // Check if certificate ID already exists
+            require(certificateHashes[_certificateId] == bytes32(0), "Certificate with this ID already exists");
+            // Check if hash is unique
+            require(!hashExists[_hash], "This hash is already associated with another certificate");
+            
+            // Store the hash
+            certificateHashes[_certificateId] = _hash;
+            hashExists[_hash] = true;
+            
+            // Emit individual event
+            emit CertificateIssued(_certificateId, _hash, msg.sender);
+        }
+
+        // Emit bulk event
+        emit CertificatesIssuedBulk(_certificateIds, _hashes, msg.sender);
+    }
+    
+    // Function to get a certificate's hash
+    function getCertificateHash(string memory _certificateId) 
         public 
         view 
-        returns (
-            string memory name,
-            string memory rollNumber,
-            uint256 marks,
-            uint256 issueDate,
-            address issuer,
-            bool isValid
-        ) 
+        returns (bytes32) 
     {
-        Certificate memory cert = certificates[_certificateId];
-        return (
-            cert.name,
-            cert.rollNumber,
-            cert.marks,
-            cert.issueDate,
-            cert.issuer,
-            cert.exists
-        );
+        return certificateHashes[_certificateId];
     }
     
     // Function to check if certificate exists
     function certificateExists(string memory _certificateId) public view returns (bool) {
-        return certificates[_certificateId].exists;
+        return certificateHashes[_certificateId] != bytes32(0);
     }
 }

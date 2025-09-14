@@ -92,7 +92,7 @@
 
     <script src="https://cdn.jsdelivr.net/npm/web3@1.8.0/dist/web3.min.js"></script>
     <script>
-        // Contract ABI (Interface)
+        // UPDATED Contract ABI to match CertificateVerification.sol
         const contractABI = [
             {
                 "inputs": [],
@@ -102,116 +102,89 @@
             {
                 "anonymous": false,
                 "inputs": [
-                    {"indexed": false, "internalType": "string", "name": "certificateId", "type": "string"},
-                    {"indexed": false, "internalType": "string", "name": "studentName", "type": "string"}
+                    { "indexed": false, "internalType": "string", "name": "certificateId", "type": "string" },
+                    { "indexed": false, "internalType": "bytes32", "name": "certificateHash", "type": "bytes32" },
+                    { "indexed": false, "internalType": "address", "name": "issuer", "type": "address" }
                 ],
                 "name": "CertificateIssued",
                 "type": "event"
             },
             {
-                "inputs": [
-                    {"internalType": "string", "name": "_name", "type": "string"},
-                    {"internalType": "string", "name": "_rollNumber", "type": "string"},
-                    {"internalType": "uint256", "name": "_marks", "type": "uint256"},
-                    {"internalType": "string", "name": "_certificateId", "type": "string"}
-                ],
-                "name": "issueCertificate",
+                "inputs": [ { "internalType": "address", "name": "_issuer", "type": "address" } ],
+                "name": "authorizeIssuer",
                 "outputs": [],
                 "stateMutability": "nonpayable",
                 "type": "function"
             },
             {
                 "inputs": [
-                    {"internalType": "string", "name": "_certificateId", "type": "string"}
+                    { "internalType": "string", "name": "_certificateId", "type": "string" }
                 ],
-                "name": "verifyCertificate",
-                "outputs": [
-                    {"internalType": "string", "name": "name", "type": "string"},
-                    {"internalType": "string", "name": "rollNumber", "type": "string"},
-                    {"internalType": "uint256", "name": "marks", "type": "uint256"},
-                    {"internalType": "uint256", "name": "issueDate", "type": "uint256"},
-                    {"internalType": "address", "name": "issuer", "type": "address"},
-                    {"internalType": "bool", "name": "isValid", "type": "bool"}
-                ],
+                "name": "getCertificateHash",
+                "outputs": [ { "internalType": "bytes32", "name": "", "type": "bytes32" } ],
                 "stateMutability": "view",
+                "type": "function"
+            },
+            {
+                "inputs": [
+                    { "internalType": "string", "name": "_certificateId", "type": "string" },
+                    { "internalType": "bytes32", "name": "_hash", "type": "bytes32" }
+                ],
+                "name": "issueCertificate",
+                "outputs": [],
+                "stateMutability": "nonpayable",
                 "type": "function"
             }
         ];
 
         // REPLACE WITH YOUR CONTRACT ADDRESS FROM DEPLOYMENT
-        const contractAddress = "0xFfD9A5F6424eff65A463F269dd5E415A4EcF0Ec5";
+        const contractAddress = "0x5FbDB2315678afecb367f032d93F642f64180aa3";
         
         let web3;
         let contract;
         let userAccount;
 
         async function connectWallet() {
-    if (typeof window.ethereum !== 'undefined') {
-        try {
-            // Request account access
-            await window.ethereum.request({ method: 'eth_requestAccounts' });
-            
-            web3 = new Web3(window.ethereum);
-            const accounts = await web3.eth.getAccounts();
-            userAccount = accounts[0];
-            
-            // Check current chain ID
-            const chainId = await window.ethereum.request({ method: 'eth_chainId' });
-            const sepoliaChainId = '0xaa36a7'; // 11155111 in hex
-            
-            // Switch to Sepolia if not already connected
-            if (chainId !== sepoliaChainId) {
+            // Check for MetaMask
+            if (typeof window.ethereum !== 'undefined') {
                 try {
-                    // Try to switch to Sepolia
-                    await window.ethereum.request({
-                        method: 'wallet_switchEthereumChain',
-                        params: [{ chainId: sepoliaChainId }],
-                    });
-                } catch (switchError) {
-                    // If Sepolia is not added to MetaMask, add it
-                    if (switchError.code === 4902) {
-                        try {
-                            await window.ethereum.request({
-                                method: 'wallet_addEthereumChain',
-                                params: [{
-                                    chainId: sepoliaChainId,
-                                    chainName: 'Sepolia Testnet',
-                                    nativeCurrency: {
-                                        name: 'SepoliaETH',
-                                        symbol: 'ETH',
-                                        decimals: 18,
-                                    },
-                                    rpcUrls: ['https://rpc.sepolia.org'],
-                                    blockExplorerUrls: ['https://sepolia.etherscan.io/'],
-                                }],
-                            });
-                        } catch (addError) {
-                            document.getElementById('walletStatus').innerHTML = 
-                                `<div class="error">❌ Failed to add Sepolia network: ${addError.message}</div>`;
-                            return;
-                        }
-                    } else {
-                        document.getElementById('walletStatus').innerHTML = 
-                            `<div class="error">❌ Failed to switch to Sepolia: ${switchError.message}</div>`;
-                        return;
-                    }
+                    // Request account access
+                    await window.ethereum.request({ method: 'eth_requestAccounts' });
+                    
+                    // Use MetaMask's provider
+                    web3 = new Web3(window.ethereum);
+                    
+                    const accounts = await web3.eth.getAccounts();
+                    userAccount = accounts[0];
+                    
+                    contract = new web3.eth.Contract(contractABI, contractAddress);
+                    
+                    document.getElementById('walletStatus').innerHTML = 
+                        `<div class="success">✅ Connected to Local Network: ${userAccount}</div>`;
+                        
+                } catch (error) {
+                    document.getElementById('walletStatus').innerHTML = 
+                        `<div class="error">❌ Error connecting wallet: ${error.message}</div>`;
+                }
+            } else {
+                // If MetaMask is not installed, try connecting to a local node directly
+                try {
+                    const provider = new Web3.providers.HttpProvider("http://127.0.0.1:8545");
+                    web3 = new Web3(provider);
+                    
+                    const accounts = await web3.eth.getAccounts();
+                    userAccount = accounts[0];
+                    
+                    contract = new web3.eth.Contract(contractABI, contractAddress);
+                    
+                    document.getElementById('walletStatus').innerHTML = 
+                        `<div class="success">✅ Connected to Local Node: ${userAccount}</div>`;
+                } catch (error) {
+                     document.getElementById('walletStatus').innerHTML = 
+                        `<div class="error">❌ Please install MetaMask or run a local node at http://127.0.0.1:8545</div>`;
                 }
             }
-            
-            contract = new web3.eth.Contract(contractABI, contractAddress);
-            
-            document.getElementById('walletStatus').innerHTML = 
-                `<div class="success">✅ Connected to Sepolia: ${userAccount}</div>`;
-                
-        } catch (error) {
-            document.getElementById('walletStatus').innerHTML = 
-                `<div class="error">❌ Error: ${error.message}</div>`;
         }
-    } else {
-        document.getElementById('walletStatus').innerHTML = 
-            '<div class="error">❌ Please install MetaMask!</div>';
-    }
-}
 
 
         async function issueCertificate() {
@@ -231,11 +204,16 @@
                 return;
             }
 
+            // Create a hash of the certificate data
+            const certificateData = `${name}-${rollNumber}-${marks}-${certId}`;
+            const certificateHash = web3.utils.soliditySha3(certificateData);
+
             try {
                 document.getElementById('issueResult').innerHTML = 
-                    '<div>⏳ Issuing certificate... Please confirm transaction in MetaMask</div>';
+                    `<div>⏳ Issuing certificate...<br>Hash: ${certificateHash}<br>Please confirm transaction.</div>`;
 
-                const result = await contract.methods.issueCertificate(name, rollNumber, marks, certId)
+                // Call the correct contract function with ID and hash
+                const result = await contract.methods.issueCertificate(certId, certificateHash)
                     .send({ from: userAccount });
 
                 document.getElementById('issueResult').innerHTML = 
@@ -268,22 +246,20 @@
             }
 
             try {
-                const result = await contract.methods.verifyCertificate(certId).call();
+                // Get the stored hash from the contract
+                const storedHash = await contract.methods.getCertificateHash(certId).call();
                 
-                if (result.isValid) {
-                    const issueDate = new Date(result.issueDate * 1000).toLocaleDateString();
+                if (storedHash !== '0x0000000000000000000000000000000000000000000000000000000000000000') {
                     document.getElementById('verifyResult').innerHTML = 
                         `<div class="success">
-                            ✅ <strong>Certificate is VALID!</strong><br>
-                            <strong>Name:</strong> ${result.name}<br>
-                            <strong>Roll Number:</strong> ${result.rollNumber}<br>
-                            <strong>Marks:</strong> ${result.marks}<br>
-                            <strong>Issue Date:</strong> ${issueDate}<br>
-                            <strong>Issuer:</strong> ${result.issuer}
+                            ✅ <strong>Certificate ID Found!</strong><br>
+                            The hash stored on the blockchain is:<br>
+                            <strong>${storedHash}</strong><br>
+                            <small>To verify, re-enter the original data on a verification page and check if the generated hash matches this one.</small>
                         </div>`;
                 } else {
                     document.getElementById('verifyResult').innerHTML = 
-                        '<div class="error">❌ Certificate NOT FOUND or INVALID!</div>';
+                        '<div class="error">❌ Certificate ID NOT FOUND!</div>';
                 }
             } catch (error) {
                 document.getElementById('verifyResult').innerHTML = 
