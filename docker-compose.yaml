@@ -1,0 +1,20 @@
+version: "3.8"
+
+services:
+  hardhat-node:
+    build: .
+    container_name: hardhat-node
+    command: npx hardhat node
+    ports:
+      - "8545:8545"
+    volumes:
+      - .:/app
+
+  deployer:
+    build: .
+    container_name: hardhat-deployer
+    depends_on:
+      - hardhat-node
+    command: sh -c "sleep 10 && npx hardhat run scripts/deploy.ts --network docker"
+    volumes:
+      - .:/app

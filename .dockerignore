@@ -1,0 +1,33 @@
+# Node modules (don’t copy to container)
+node_modules
+npm-debug.log
+yarn-error.log
+pnpm-debug.log
+
+# Logs
+*.log
+logs
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Git
+.git
+.gitignore
+
+# Env files
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# Docker files (avoid recursive copy)
+.dockerignore
+Dockerfile
+docker-compose.yml
+
+# Hardhat cache/artifacts (they can be re-generated inside container)
+cache
+artifacts
