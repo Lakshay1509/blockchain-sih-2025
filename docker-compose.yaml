@@ -7,8 +7,7 @@ services:
     command: npx hardhat node
     ports:
       - "8545:8545"
-    volumes:
-      - .:/app
+    # Remove volumes completely
 
   deployer:
     build: .
@@ -16,5 +15,4 @@ services:
     depends_on:
       - hardhat-node
     command: sh -c "sleep 10 && npx hardhat run scripts/deploy.ts --network docker"
-    volumes:
-      - .:/app
+    # Remove volumes completely
